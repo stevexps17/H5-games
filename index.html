@@ -2,47 +2,29 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <!-- 手机适配 + 禁止缩放，避免误触放大 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>新春画卷 - 最终兼容版</title>
+    <title>新春画卷 - 最终稳定版 (手机兼容)</title>
     <style>
-        /* 模态框修正：确保初始隐藏 */
-        .modal {
-            display: none; 
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-        }
-
-        .modal-content {
-            background: var(--primary-red);
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-            border: 3px solid var(--gold);
-        }
-
-        .star-result {
-            font-size: 36px;
-            margin: 10px 0;
-        }
-
         :root {
             --primary-red: #8B0000;
             --gold: #FFD700;
             --bg-color: #2c2c2c;
-            
-            --tile-size: 80px; 
+
+            /* 下面两个会在 JS 里根据屏幕宽度动态覆盖 */
+            --tile-size: 80px;
             --tab-size: 12px;
-            --dock-width: 160px;
-            
-            --cols: 7;         
-            --rows: 5;         
+
             --render-size: calc(var(--tile-size) + var(--tab-size) * 2);
-            --board-w: calc(var(--cols) * var(--tile-size)); 
+
+            --cols: 7;
+            --rows: 5;
+            --board-w: calc(var(--cols) * var(--tile-size));
             --board-h: calc(var(--rows) * var(--tile-size));
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
@@ -53,67 +35,89 @@
             flex-direction: column;
             align-items: center;
             margin: 0;
-            padding: 10px; 
+            padding: 20px;
             min-height: 100vh;
-            user-select: none; 
-            overflow: auto; 
-        }
-        
-        .game-container {
-            display: flex; gap: 20px; 
-            flex-direction: row; 
-            justify-content: center; 
-            align-items: flex-start; 
-            width: 100%;
-            max-width: 900px;
-        }
-
-        @media (max-width: 768px) {
-            .game-container {
-                flex-direction: column;
-                align-items: center;
-            }
-            .puzzle-board {
-                margin-bottom: 20px;
-            }
-            .piece-dock {
-                width: 95% !important; 
-                max-height: 300px; 
-                overflow-y: scroll;
-                flex-direction: row; 
-                flex-wrap: wrap; 
-                justify-content: center;
-                gap: 5px;
-            }
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            touch-action: manipulation;
         }
 
         #drag-layer {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; 
+            pointer-events: none;
             z-index: 9999;
         }
 
         .header {
-            width: 100%; max-width: 900px; display: flex;
-            justify-content: space-between; align-items: center;
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             background: linear-gradient(to bottom, #4a1212, #2a0a0a);
-            padding: 10px 10px; border: 2px solid var(--gold);
-            border-radius: 10px; margin-bottom: 10px;
-            box-sizing: border-box; flex-shrink: 0;
-            font-size: 14px; 
+            padding: 10px 20px;
+            border: 2px solid var(--gold);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            flex-wrap: wrap;
+            gap: 8px;
         }
-        .title { font-size: 18px; }
-        .status-bar { display: flex; gap: 10px; font-size: 14px; }
-        .btn-group { display: flex; gap: 5px; }
-        .btn { padding: 5px 10px; }
-        #fileInput { display: none; }
+
+        .title {
+            font-size: 24px;
+            color: var(--gold);
+            font-weight: bold;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            font-size: 18px;
+            align-items: center;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(to bottom, #f3dba9, #dcb365);
+            border: 1px solid #5c3c12;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #3e2706;
+            border-radius: 4px;
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .game-container {
+            display: flex;
+            gap: 40px;
+            position: relative;
+            justify-content: center;
+            align-items: flex-start;
+            max-width: 900px;
+            width: 100%;
+        }
 
         .puzzle-board {
             display: grid;
             grid-template-columns: repeat(var(--cols), var(--tile-size));
             grid-template-rows: repeat(var(--rows), var(--tile-size));
-            gap: 0; 
+            gap: 0;
             background-color: rgba(0, 0, 0, 0.5);
             border: 5px solid var(--gold);
             position: relative;
@@ -121,50 +125,153 @@
             height: var(--board-h);
             flex-shrink: 0;
             z-index: 1;
-            overflow: visible; 
-            box-sizing: content-box; 
+            overflow: visible;
         }
 
         .grid-slot {
-            width: var(--tile-size); height: var(--tile-size);
-            border: 1px dashed rgba(255, 255, 255, 0.15); 
-            box-sizing: border-box; pointer-events: none; 
-            z-index: 2; 
-        }
-
-        .piece-dock {
-            width: var(--dock-width); 
-            height: calc(var(--board-h) + 10px);
-            background: rgba(0,0,0,0.3); border: 2px solid #555;
-            overflow-y: auto; padding: 5px; 
-            display: flex;
-            flex-direction: column; 
-            align-items: center; 
-            gap: 5px; 
-            flex-shrink: 0; 
-            z-index: 10;
-        }
-
-        .puzzle-piece {
-            width: var(--render-size); height: var(--render-size);
-            touch-action: none; 
-            background-size: var(--board-w) var(--board-h); 
-            filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5));
-            cursor: grab;
-            /* 确保在 Dock 中是相对定位 */
-            position: relative; 
-            z-index: 1; 
-            flex-shrink: 0;
-            pointer-events: auto; user-select: none;
-            -webkit-user-drag: none;
+            width: var(--tile-size);
+            height: var(--tile-size);
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            box-sizing: border-box;
+            pointer-events: none;
+            z-index: 2;
         }
 
         .preview-overlay {
-            background-size: var(--board-w) var(--board-h); 
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #dcb365;
+            background-size: cover;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 5;
         }
-        
+
+        .preview-overlay.show {
+            opacity: 0.8;
+        }
+
+        .piece-dock {
+            width: 160px;
+            height: calc(var(--board-h) + 20px);
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid #555;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .puzzle-group {
+            position: absolute;
+            z-index: 50;
+            cursor: grab;
+            pointer-events: auto;
+            transition: none;
+            touch-action: none;
+        }
+
+        .puzzle-group.dragging {
+            z-index: 9999;
+            transform: scale(1.05);
+            transition: none;
+        }
+
+        .puzzle-piece {
+            width: var(--render-size);
+            height: var(--render-size);
+            background-color: transparent;
+            background-size: var(--board-w) var(--board-h);
+            filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5));
+            cursor: grab;
+            position: relative;
+            z-index: 1;
+            flex-shrink: 0;
+            pointer-events: auto;
+            user-select: none;
+            -webkit-user-drag: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            transition: transform 0.2s, filter 0.2s;
+        }
+
+        .puzzle-group .puzzle-piece {
+            position: absolute;
+            z-index: 1;
+            margin: 0;
+            filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.3));
+        }
+
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .modal-content {
+            background: #fff;
+            color: #333;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            border: 5px solid var(--primary-red);
+            max-width: 400px;
+        }
+
+        .star-result {
+            font-size: 30px;
+            color: var(--gold);
+            margin: 10px 0;
+        }
+
         .flying-back {
-            transition: all 1s ease-in-out !important; 
+            transition: all 1s ease-in-out !important;
+        }
+
+        /* 手机端布局调整 */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .game-container {
+                flex-direction: column;
+                gap: 16px;
+                align-items: center;
+            }
+
+            .puzzle-board {
+                margin-bottom: 4px;
+            }
+
+            .piece-dock {
+                width: 100%;
+                max-width: 100%;
+                height: auto;
+                max-height: 40vh;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                overflow-y: auto;
+            }
+
+            .puzzle-piece {
+                margin: 2px;
+            }
         }
     </style>
 </head>
@@ -173,7 +280,7 @@
     <div id="drag-layer"></div>
 
     <div class="header">
-        <div class="title">新春画卷 - 最终兼容版</div>
+        <div class="title">新春画卷 - 最终稳定版</div>
         <div class="status-bar">
             <span id="timerDisplay">⏱ 00:00</span>
             <span id="starDisplay">⭐⭐⭐</span>
@@ -181,8 +288,11 @@
         <div class="btn-group">
             <input type="file" id="fileInput" accept="image/*" onchange="handleImageUpload(event)">
             <button class="btn" onclick="document.getElementById('fileInput').click()">📂 选择图片</button>
-            <button class="btn" id="viewOriginalBtn" onmousedown="showOriginal()" onmouseup="hideOriginal()" onmouseleave="hideOriginal()" ontouchstart="showOriginal()" ontouchend="hideOriginal()">👀 原图</button>
-            <button class="btn" onclick="checkDefaultImage()">🔄 重置</button>
+            <button class="btn" id="viewOriginalBtn"
+                    onmousedown="showOriginal()" onmouseup="hideOriginal()" onmouseleave="hideOriginal()">
+                👀 看原图
+            </button>
+            <button class="btn" onclick="initGame()">🔄 重置</button>
         </div>
     </div>
 
@@ -205,123 +315,140 @@
     </div>
 
     <script>
-        const COLS = 7; 
-        const ROWS = 5; 
-        const TOTAL_PIECES = COLS * ROWS; 
-        
-        let TILE_SIZE; 
-        let TAB_SIZE;
-        let GROUP_OFFSET;
-        
-        const PLACED_PIECES_MAP = new Map(); 
-        let currentImgUrl = './image.jpg'; 
-        const FALLBACK_IMG = 'https://picsum.photos/560/400';
+        const COLS = 7;
+        const ROWS = 5;
 
-        let pieces = []; 
+        // 变成可调整的全局变量
+        let TILE_SIZE = 80;
+        let TAB_SIZE = 12;
+        let GROUP_OFFSET = -TAB_SIZE;
+
+        const PLACED_PIECES_MAP = new Map();
+
+        let pieces = [];
         let isGaming = false;
         let timerInterval = null;
         let secondsElapsed = 0;
-        
-        let verticalEdges = [];   
-        let horizontalEdges = []; 
+
+        let verticalEdges = [];
+        let horizontalEdges = [];
 
         const boardEl = document.getElementById('board');
         const dockEl = document.getElementById('dock');
         const dragLayer = document.getElementById('drag-layer');
-        const overlayEl = document.getElementById('previewOverlay');
         const timerEl = document.getElementById('timerDisplay');
         const starEl = document.getElementById('starDisplay');
         const modalEl = document.getElementById('resultModal');
+        const overlayEl = document.getElementById('previewOverlay');
 
-        // --- RWD & Setup ---
-        function setupResponsiveSizes() {
-            const vw = window.innerWidth;
-            const vh = window.innerHeight;
-            
-            let dynamicTileSize;
+        let currentImgUrl = './image.jpg';
+        const FALLBACK_IMG = 'https://picsum.photos/560/400';
 
-            if (vw < 768 || vw < vh) {
-                dynamicTileSize = Math.floor((vw * 0.95) / COLS);
+        // 统一获取坐标（鼠标 / 触摸）
+        function getPoint(e) {
+            if (e.touches && e.touches[0]) return e.touches[0];
+            if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0];
+            return e;
+        }
+
+        // 根据屏幕宽度调整 TILE_SIZE / TAB_SIZE
+        function setupResponsive() {
+            const screenW = window.innerWidth || document.documentElement.clientWidth;
+            const isMobile = screenW <= 768;
+
+            if (isMobile) {
+                let size = Math.floor((screenW - 40) / COLS);
+                if (size < 40) size = 40;
+                TILE_SIZE = size;
+                TAB_SIZE = Math.max(Math.floor(TILE_SIZE * 0.15), 8);
             } else {
-                dynamicTileSize = Math.floor((vw * 0.75) / COLS);
+                TILE_SIZE = 80;
+                TAB_SIZE = 12;
             }
-            
-            const MAX_TILE_SIZE = 80;
-            dynamicTileSize = Math.min(MAX_TILE_SIZE, dynamicTileSize);
-
-            TILE_SIZE = dynamicTileSize;
-            TAB_SIZE = Math.round(TILE_SIZE * 0.15); 
             GROUP_OFFSET = -TAB_SIZE;
-            
-            const DOCK_WIDTH = (TILE_SIZE + 2 * TAB_SIZE) * 2;
 
             document.documentElement.style.setProperty('--tile-size', TILE_SIZE + 'px');
             document.documentElement.style.setProperty('--tab-size', TAB_SIZE + 'px');
-            document.documentElement.style.setProperty('--dock-width', DOCK_WIDTH + 'px');
-            
-            boardEl.style.width = `var(--board-w)`;
-            boardEl.style.height = `var(--board-h)`;
-            overlayEl.style.backgroundSize = `var(--board-w) var(--board-h)`;
+        }
+
+        // “看原图”按钮触摸支持
+        function setupTouchForOriginalBtn() {
+            const btn = document.getElementById('viewOriginalBtn');
+            if (!btn) return;
+            btn.addEventListener('touchstart', function (e) {
+                e.preventDefault();
+                showOriginal();
+            }, { passive: false });
+            ['touchend', 'touchcancel'].forEach(ev => {
+                btn.addEventListener(ev, function (e) {
+                    e.preventDefault();
+                    hideOriginal();
+                }, { passive: false });
+            });
+        }
+
+        window.onload = () => {
+            setupResponsive();
+            setupTouchForOriginalBtn();
+            checkDefaultImage();
+            createGrid();
+        };
+
+        window.addEventListener('resize', () => {
+            setupResponsive();
+            // 如果缩放后位置有点偏，可以手动点“重置”
+        });
+
+        function checkDefaultImage() {
+            const img = new Image();
+            img.src = currentImgUrl;
+            img.onload = () => initGame();
+            img.onerror = () => {
+                currentImgUrl = FALLBACK_IMG;
+                initGame();
+            };
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                currentImgUrl = e.target.result;
+                initGame();
+            }
+            reader.readAsDataURL(file);
         }
 
         function createGrid() {
             boardEl.innerHTML = '';
-            boardEl.appendChild(overlayEl); 
-            for(let r=0; r<ROWS; r++) {
-                for(let c=0; c<COLS; c++) {
+            boardEl.appendChild(overlayEl);
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
                     let slot = document.createElement('div');
                     slot.className = 'grid-slot';
                     boardEl.appendChild(slot);
                 }
             }
         }
-        
-        // 核心逻辑：加载图片并启动游戏
-        function checkDefaultImage() {
-            // 清理旧状态
-            clearInterval(timerInterval);
-            modalEl.style.display = 'none';
-            // 确保所有元素被移除
-            document.querySelectorAll('.puzzle-piece, .puzzle-group').forEach(p => p.remove());
-            dockEl.innerHTML = '';
-            
-            const img = new Image();
-            img.onload = () => {
-                setupResponsiveSizes(); 
-                createGrid(); // 重新创建棋盘
-                initGame(); // 只有图片加载成功后才初始化游戏
-            };
-            img.onerror = () => {
-                // 如果默认图片加载失败，使用后备图并重试加载
-                currentImgUrl = FALLBACK_IMG; 
-                img.src = currentImgUrl;
-            };
-            img.src = currentImgUrl;
-        }
 
-        window.onload = () => {
-            // 页面加载时执行一次完整的初始化
-            checkDefaultImage();
-        };
-
-        window.onresize = () => {
-             // 仅在游戏进行中时才触发完整的重置流程，避免在非游戏状态下丢失自定义图片
-             setupResponsiveSizes(); 
-             if (isGaming) {
-                 checkDefaultImage(); 
-             }
-        };
-        
-        function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                currentImgUrl = e.target.result;
-                // 直接调用 checkDefaultImage()，它会负责加载图片和调用 initGame()
-                checkDefaultImage(); 
+        function generatePuzzleShapes() {
+            verticalEdges = [];
+            horizontalEdges = [];
+            for (let r = 0; r < ROWS; r++) {
+                let rowEdges = [];
+                for (let c = 0; c <= COLS; c++) {
+                    rowEdges.push((c === 0 || c === COLS) ? 0 : (Math.random() > 0.5 ? 1 : -1));
+                }
+                verticalEdges.push(rowEdges);
             }
-            reader.readAsDataURL(file);
+            for (let r = 0; r <= ROWS; r++) {
+                let rowEdges = [];
+                for (let c = 0; c < COLS; c++) {
+                    rowEdges.push((r === 0 || r === ROWS) ? 0 : (Math.random() > 0.5 ? 1 : -1));
+                }
+                horizontalEdges.push(rowEdges);
+            }
         }
 
         function initGame() {
@@ -329,33 +456,42 @@
             secondsElapsed = 0;
             pieces = [];
             PLACED_PIECES_MAP.clear();
-            
+
             overlayEl.style.backgroundImage = `url('${currentImgUrl}')`;
             clearInterval(timerInterval);
             timerInterval = setInterval(updateTimer, 1000);
             updateTimerView();
 
-            // 再次确保 dock 和所有碎片被清理，特别是针对 Safari 延迟渲染/清理
             dockEl.innerHTML = '';
             document.querySelectorAll('.puzzle-piece, .puzzle-group').forEach(p => p.remove());
 
             generatePuzzleShapes();
 
             let tempPieces = [];
+            const TOTAL_PIECES = COLS * ROWS;
             for (let i = 0; i < TOTAL_PIECES; i++) {
                 const targetX = i % COLS;
                 const targetY = Math.floor(i / COLS);
-                
+
                 const shapes = {
                     top: horizontalEdges[targetY][targetX],
-                    right: verticalEdges[targetY][targetX+1],
-                    bottom: horizontalEdges[targetY+1][targetX],
+                    right: verticalEdges[targetY][targetX + 1],
+                    bottom: horizontalEdges[targetY + 1][targetX],
                     left: verticalEdges[targetY][targetX]
                 };
 
                 tempPieces.push({
-                    id: i, targetX: targetX, targetY: targetY, currentX: -1, currentY: -1, 
-                    isPlaced: false, shapes: shapes, el: null, groupEl: null, groupAnchorX: -1, groupAnchorY: -1,  
+                    id: i,
+                    targetX: targetX,
+                    targetY: targetY,
+                    currentX: -1,
+                    currentY: -1,
+                    isPlaced: false,
+                    shapes: shapes,
+                    el: null,
+                    groupEl: null,
+                    groupAnchorX: -1,
+                    groupAnchorY: -1,
                 });
             }
 
@@ -363,149 +499,354 @@
             tempPieces.forEach(p => createPieceElement(p));
         }
 
-        // --- SVG Path & Piece Creation ---
-        function getPiecePath(top, right, bottom, left) { 
-            const S = TILE_SIZE; const T = TAB_SIZE; let path = `M ${T} ${T} `; 
-            if (top === 0) { path += `L ${T+S} ${T} `; } else { path += drawHorizontalSide(S, T, (top === -1) ? -1 : 1); }
-            if (right === 0) { path += `L ${T+S} ${T+S} `; } else { path += drawVerticalSide(S, T, (right === 1) ? 1 : -1); }
-            if (bottom === 0) { path += `L ${T} ${T+S} `; } else { path += drawHorizontalSideBack(S, T, (bottom === 1) ? 1 : -1); }
-            if (left === 0) { path += `L ${T} ${T} `; } else { path += drawVerticalSideBack(S, T, (left === -1) ? -1 : 1); }
+        function getPiecePath(top, right, bottom, left) {
+            const S = TILE_SIZE;
+            const T = TAB_SIZE;
+            let path = `M ${T} ${T} `;
+
+            if (top === 0) {
+                path += `L ${T + S} ${T} `;
+            } else {
+                path += drawHorizontalSide(S, T, (top === -1) ? -1 : 1);
+            }
+
+            if (right === 0) {
+                path += `L ${T + S} ${T + S} `;
+            } else {
+                path += drawVerticalSide(S, T, (right === 1) ? 1 : -1);
+            }
+
+            if (bottom === 0) {
+                path += `L ${T} ${T + S} `;
+            } else {
+                path += drawHorizontalSideBack(S, T, (bottom === 1) ? 1 : -1);
+            }
+
+            if (left === 0) {
+                path += `L ${T} ${T} `;
+            } else {
+                path += drawVerticalSideBack(S, T, (left === -1) ? -1 : 1);
+            }
             return path + "Z";
         }
-        function drawHorizontalSide(S, T, sign) { return `l ${S * 0.35} 0 c 5 ${sign*T}, ${S * 0.3 - 5} ${sign*T}, ${S * 0.3} 0 l ${S * 0.35} 0 `; }
-        function drawHorizontalSideBack(S, T, sign) { return `l -${S * 0.35} 0 c -5 ${sign*T}, -${S * 0.3 - 5} ${sign*T}, -${S * 0.3} 0 l -${S * 0.35} 0 `; }
-        function drawVerticalSide(S, T, sign) { return `l 0 ${S * 0.35} c ${sign*T} 5, ${sign*T} ${S * 0.3 - 5}, 0 ${S * 0.3} l 0 ${S * 0.35} `; }
-        function drawVerticalSideBack(S, T, sign) { return `l 0 -${S * 0.35} c ${sign*T} -5, ${sign*T} -${S * 0.3 - 5}, 0 -${S * 0.3} l 0 -${S * 0.35} `; }
+
+        function drawHorizontalSide(S, T, sign) {
+            const neck = S * 0.35;
+            const earW = S * 0.3;
+            let p = `l ${neck} 0 `;
+            p += `c 5 ${sign * T}, ${earW - 5} ${sign * T}, ${earW} 0 `;
+            p += `l ${neck} 0 `;
+            return p;
+        }
+
+        function drawHorizontalSideBack(S, T, sign) {
+            const neck = S * 0.35;
+            const earW = S * 0.3;
+            let p = `l -${neck} 0 `;
+            p += `c -5 ${sign * T}, -${earW - 5} ${sign * T}, -${earW} 0 `;
+            p += `l -${neck} 0 `;
+            return p;
+        }
+
+        function drawVerticalSide(S, T, sign) {
+            const neck = S * 0.35;
+            const earW = S * 0.3;
+            let p = `l 0 ${neck} `;
+            p += `c ${sign * T} 5, ${sign * T} ${earW - 5}, 0 ${earW} `;
+            p += `l 0 ${neck} `;
+            return p;
+        }
+
+        function drawVerticalSideBack(S, T, sign) {
+            const neck = S * 0.35;
+            const earW = S * 0.3;
+            let p = `l 0 -${neck} `;
+            p += `c ${sign * T} -5, ${sign * T} -${earW - 5}, 0 -${earW} `;
+            p += `l 0 -${neck} `;
+            return p;
+        }
 
         function createPieceElement(pieceData) {
             const el = document.createElement('div');
             el.className = 'puzzle-piece';
             el.id = 'piece_' + pieceData.id;
             pieceData.el = el;
-            
+
             el.style.backgroundImage = `url('${currentImgUrl}')`;
-            
-            const pathStr = getPiecePath(pieceData.shapes.top, pieceData.shapes.right, pieceData.shapes.bottom, pieceData.shapes.left);
-            
+
+            const pathStr = getPiecePath(
+                pieceData.shapes.top,
+                pieceData.shapes.right,
+                pieceData.shapes.bottom,
+                pieceData.shapes.left
+            );
             el.style.clipPath = `path('${pathStr}')`;
             el.style.webkitClipPath = `path('${pathStr}')`;
 
             const bgX = -(pieceData.targetX * TILE_SIZE) + TAB_SIZE;
             const bgY = -(pieceData.targetY * TILE_SIZE) + TAB_SIZE;
             el.style.backgroundPosition = `${bgX}px ${bgY}px`;
-            
-            const boardWidth = TILE_SIZE * COLS;
-            const boardHeight = TILE_SIZE * ROWS;
-            el.style.backgroundSize = `${boardWidth}px ${boardHeight}px`;
 
-            // **关键修正 1: 确保在 Dock 中是相对定位**
-            el.style.position = 'relative'; 
-            el.style.left = '0';
-            el.style.top = '0';
+            // 鼠标 + 触摸事件
+            el.addEventListener('mousedown', (e) => handleDragStart(e, el, pieceData));
+            el.addEventListener('touchstart', (e) => handleDragStart(e, el, pieceData), { passive: false });
 
-            // **关键修正 2: 调试可见性，确保碎片存在**
-            el.style.backgroundColor = 'rgba(255, 0, 0, 0.3)'; 
-            el.style.border = '1px solid yellow'; 
-
-            el.onmousedown = el.ontouchstart = (e) => handleDragStart(e, el, pieceData);
-            
             dockEl.appendChild(el);
-            pieces.push({el: el, data: pieceData});
+            pieces.push({ el: el, data: pieceData });
         }
-        
-        // --- 拖拽核心逻辑 (保持不变) ---
-        let draggedEl = null;
-        let dragOffset = {x:0, y:0};
 
-        function getCoords(e) {
-            if (e.touches && e.touches.length) {
-                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        function updatePieceMap(pieceObj, action) {
+            const key = `${pieceObj.currentX},${pieceObj.currentY}`;
+            if (action === 'add') {
+                PLACED_PIECES_MAP.set(key, pieceObj);
+            } else if (action === 'remove') {
+                PLACED_PIECES_MAP.delete(key);
             }
-            return { x: e.clientX, y: e.clientY };
         }
+
+        function createGroup(pieceObj) {
+            const groupEl = document.createElement('div');
+            groupEl.className = 'puzzle-group';
+
+            pieceObj.groupEl = groupEl;
+            pieceObj.groupAnchorX = pieceObj.currentX;
+            pieceObj.groupAnchorY = pieceObj.currentY;
+
+            groupEl.style.left = (pieceObj.currentX * TILE_SIZE + GROUP_OFFSET) + 'px';
+            groupEl.style.top = (pieceObj.currentY * TILE_SIZE + GROUP_OFFSET) + 'px';
+
+            boardEl.appendChild(groupEl);
+            movePieceToGroup(pieceObj, groupEl, pieceObj.groupAnchorX, pieceObj.groupAnchorY);
+
+            return groupEl;
+        }
+
+        function movePieceToGroup(pieceObj, groupEl, anchorX, anchorY) {
+            const pieceEl = pieceObj.el;
+
+            const relativeX = (pieceObj.currentX - anchorX) * TILE_SIZE;
+            const relativeY = (pieceObj.currentY - anchorY) * TILE_SIZE;
+
+            pieceEl.classList.remove('flying-back');
+            groupEl.appendChild(pieceEl);
+
+            pieceEl.style.left = relativeX + 'px';
+            pieceEl.style.top = relativeY + 'px';
+
+            pieceObj.groupEl = groupEl;
+            pieceObj.groupAnchorX = anchorX;
+            pieceObj.groupAnchorY = anchorY;
+        }
+
+        function unionGroups(anchorGroupObj, targetGroupObj) {
+            const anchorGroupEl = anchorGroupObj.groupEl;
+            const targetGroupEl = targetGroupObj.groupEl;
+
+            if (anchorGroupEl === targetGroupEl) return;
+
+            const anchorX = anchorGroupObj.groupAnchorX;
+            const anchorY = anchorGroupObj.groupAnchorY;
+
+            const piecesToMove = pieces.filter(p => p.data.groupEl === targetGroupEl);
+
+            piecesToMove.forEach(p => {
+                movePieceToGroup(p.data, anchorGroupEl, anchorX, anchorY);
+            });
+
+            targetGroupEl.remove();
+        }
+
+        function checkAndMergeByPosition(pieceObj) {
+            const neighbors = [
+                { dx: 0, dy: -1 },
+                { dx: 1, dy: 0 },
+                { dx: 0, dy: 1 },
+                { dx: -1, dy: 0 }
+            ];
+
+            let anchorGroup = pieceObj;
+            let groupsToMerge = [];
+
+            const currentX = pieceObj.currentX;
+            const currentY = pieceObj.currentY;
+
+            for (const { dx, dy } of neighbors) {
+                const neighborX = currentX + dx;
+                const neighborY = currentY + dy;
+
+                const neighborObj = PLACED_PIECES_MAP.get(`${neighborX},${neighborY}`);
+
+                if (neighborObj) {
+                    if (pieceObj.groupEl === neighborObj.groupEl) {
+                        continue;
+                    }
+
+                    const requiredTargetDX = pieceObj.targetX - neighborObj.targetX;
+                    const requiredTargetDY = pieceObj.targetY - neighborObj.targetY;
+
+                    if (requiredTargetDX === -dx && requiredTargetDY === -dy) {
+                        const neighborGroupAnchor = pieces.find(p => p.data.groupEl === neighborObj.groupEl).data;
+
+                        if (!groupsToMerge.includes(neighborGroupAnchor)) {
+                            groupsToMerge.push(neighborGroupAnchor);
+                        }
+
+                        if (neighborObj.groupAnchorY < anchorGroup.groupAnchorY ||
+                            (neighborObj.groupAnchorY === anchorGroup.groupAnchorY && neighborObj.groupAnchorX < anchorGroup.groupAnchorX)) {
+                            anchorGroup = neighborObj;
+                        }
+                    }
+                }
+            }
+
+            groupsToMerge.push(pieceObj);
+            const finalAnchorPiece = pieces.find(p => p.data.groupEl === anchorGroup.groupEl).data;
+
+            groupsToMerge.forEach(p => {
+                if (p.groupEl !== finalAnchorPiece.groupEl) {
+                    unionGroups(finalAnchorPiece, p);
+                }
+            });
+
+            checkExternalMerges(finalAnchorPiece);
+            checkWin();
+        }
+
+        function checkExternalMerges(groupAnchorPiece) {
+            const piecesInGroup = pieces.filter(p => p.data.groupEl === groupAnchorPiece.groupEl);
+
+            piecesInGroup.forEach(p => {
+                const neighbors = [
+                    { dx: 0, dy: -1 },
+                    { dx: 1, dy: 0 },
+                    { dx: 0, dy: 1 },
+                    { dx: -1, dy: 0 }
+                ];
+
+                const currentX = p.data.currentX;
+                const currentY = p.data.currentY;
+
+                for (const { dx, dy } of neighbors) {
+                    const neighborX = currentX + dx;
+                    const neighborY = currentY + dy;
+
+                    const neighborObj = PLACED_PIECES_MAP.get(`${neighborX},${neighborY}`);
+
+                    if (neighborObj && neighborObj.groupEl !== groupAnchorPiece.groupEl) {
+                        const requiredTargetDX = p.data.targetX - neighborObj.targetX;
+                        const requiredTargetDY = p.data.targetY - neighborObj.targetY;
+
+                        if (requiredTargetDX === -dx && requiredTargetDY === -dy) {
+                            let anchorPiece = groupAnchorPiece;
+                            let targetPiece = pieces.find(p => p.data.groupEl === neighborObj.groupEl).data;
+
+                            if (neighborObj.groupAnchorY < groupAnchorPiece.groupAnchorY ||
+                                (neighborObj.groupAnchorY === groupAnchorPiece.groupAnchorY && neighborObj.groupAnchorX < groupAnchorPiece.groupAnchorX)) {
+
+                                anchorPiece = neighborObj;
+                                targetPiece = groupAnchorPiece;
+                            }
+
+                            unionGroups(anchorPiece, targetPiece);
+                            checkExternalMerges(anchorPiece);
+                            return;
+                        }
+                    }
+                }
+            });
+        }
+
+        let draggedEl = null;
+        let dragOffset = { x: 0, y: 0 };
 
         function handleDragStart(e, el, pieceData) {
             if (!isGaming) return;
-            e.preventDefault(); 
-            document.body.style.webkitUserSelect = 'none';
+            e.preventDefault();
+
+            const point = getPoint(e);
 
             let elementToDrag = pieceData.isPlaced ? pieceData.groupEl : el;
-            
+
             draggedEl = elementToDrag;
             draggedEl.classList.add('dragging');
 
             const rect = elementToDrag.getBoundingClientRect();
-            const coords = getCoords(e);
-            dragOffset.x = coords.x - rect.left;
-            dragOffset.y = coords.y - rect.top;
+            dragOffset.x = point.clientX - rect.left;
+            dragOffset.y = point.clientY - rect.top;
 
-            // 拖拽时设置绝对定位并移动到拖拽层
-            draggedEl.style.position = 'absolute';
-            dragLayer.appendChild(elementToDrag); 
+            dragLayer.appendChild(elementToDrag);
 
-            elementToDrag.style.left = (coords.x - dragOffset.x) + 'px';
-            elementToDraw.style.top = (coords.y - dragOffset.y) + 'px';
+            elementToDrag.style.left = (point.clientX - dragOffset.x) + 'px';
+            elementToDrag.style.top = (point.clientY - dragOffset.y) + 'px';
 
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-            document.addEventListener('touchmove', onMouseMove, { passive: false }); 
-            document.addEventListener('touchend', onMouseUp);
+            document.addEventListener('mousemove', onPointerMove);
+            document.addEventListener('mouseup', onPointerUp);
+            document.addEventListener('touchmove', onPointerMove, { passive: false });
+            document.addEventListener('touchend', onPointerUp);
+            document.addEventListener('touchcancel', onPointerUp);
         }
 
-        function onMouseMove(e) {
-           e.preventDefault(); 
-           if (!draggedEl) return;
-           const coords = getCoords(e);
-           draggedEl.style.left = (coords.x - dragOffset.x) + 'px';
-           draggedEl.style.top = (coords.y - dragOffset.y) + 'px';
+        function onPointerMove(e) {
+            if (!draggedEl) return;
+            const point = getPoint(e);
+            if (!point) return;
+            e.preventDefault();
+
+            draggedEl.style.left = (point.clientX - dragOffset.x) + 'px';
+            draggedEl.style.top = (point.clientY - dragOffset.y) + 'px';
         }
 
-        function onMouseUp(e) {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-            document.removeEventListener('touchmove', onMouseMove);
-            document.removeEventListener('touchend', onMouseUp);
-            
-            document.body.style.webkitUserSelect = 'auto'; 
+        function onPointerUp(e) {
+            document.removeEventListener('mousemove', onPointerMove);
+            document.removeEventListener('mouseup', onPointerUp);
+            document.removeEventListener('touchmove', onPointerMove);
+            document.removeEventListener('touchend', onPointerUp);
+            document.removeEventListener('touchcancel', onPointerUp);
 
             if (!draggedEl) return;
             draggedEl.classList.remove('dragging');
-            
+
             const boardRect = boardEl.getBoundingClientRect();
             const elementRect = draggedEl.getBoundingClientRect();
-            
+
             const isGroup = draggedEl.classList.contains('puzzle-group');
+
             let placementSuccessful = false;
-            
+
             const boardRelativeLeft = elementRect.left - boardRect.left;
             const boardRelativeTop = elementRect.top - boardRect.top;
-            
-            const anchorGridLeft = boardRelativeLeft - GROUP_OFFSET; 
+
+            const anchorGridLeft = boardRelativeLeft - GROUP_OFFSET;
             const anchorGridTop = boardRelativeTop - GROUP_OFFSET;
-            
+
             const snapX = Math.round(anchorGridLeft / TILE_SIZE);
             const snapY = Math.round(anchorGridTop / TILE_SIZE);
 
             if (snapX >= 0 && snapX < COLS && snapY >= 0 && snapY < ROWS) {
-                
                 if (isGroup) {
                     const anchorPiece = pieces.find(p => p.data.groupEl === draggedEl).data;
                     const piecesInGroup = pieces.filter(p => p.data.groupEl === draggedEl);
+
                     const offsetX = snapX - anchorPiece.groupAnchorX;
                     const offsetY = snapY - anchorPiece.groupAnchorY;
+
                     let collision = false;
                     let isWithinBounds = true;
-                    
+
                     for (const p of piecesInGroup) {
                         const newPieceX = p.data.currentX + offsetX;
                         const newPieceY = p.data.currentY + offsetY;
-                        
+
                         if (newPieceX < 0 || newPieceX >= COLS || newPieceY < 0 || newPieceY >= ROWS) {
-                            isWithinBounds = false; break;
+                            isWithinBounds = false;
+                            break;
                         }
+
                         const occupyingPiece = PLACED_PIECES_MAP.get(`${newPieceX},${newPieceY}`);
+
                         if (occupyingPiece && occupyingPiece.groupEl !== draggedEl) {
-                            collision = true; break;
+                            collision = true;
+                            break;
                         }
                     }
 
@@ -513,7 +854,6 @@
                         placeGroup(draggedEl, snapX, snapY);
                         placementSuccessful = true;
                     }
-
                 } else {
                     if (!PLACED_PIECES_MAP.has(`${snapX},${snapY}`)) {
                         const pieceObj = pieces.find(p => p.el === draggedEl).data;
@@ -521,18 +861,18 @@
                         placementSuccessful = true;
                     }
                 }
-            } 
-            
+            }
+
             if (!placementSuccessful) {
                 if (isGroup) {
                     const currentBoardX = elementRect.left - boardRect.left;
                     const currentBoardY = elementRect.top - boardRect.top;
 
                     draggedEl.style.transition = 'none';
-                    boardEl.appendChild(draggedEl); 
+                    boardEl.appendChild(draggedEl);
                     draggedEl.style.left = currentBoardX + 'px';
                     draggedEl.style.top = currentBoardY + 'px';
-                    
+
                     setTimeout(() => {
                         draggedEl.style.transition = 'all 1s ease-in-out';
                         returnGroupToPrevious(draggedEl);
@@ -544,31 +884,182 @@
             draggedEl = null;
         }
 
-        // --- 组合拼图块逻辑 (此处仅为占位，确保代码完整性) ---
-        function updatePieceMap(pieceObj, action) { /* 保持不变 */ }
-        function createGroup(pieceObj) { /* 保持不变 */ }
-        function movePieceToGroup(pieceObj, groupEl, anchorX, anchorY) { /* 保持不变 */ }
-        function unionGroups(anchorGroupObj, targetGroupObj) { /* 保持不变 */ }
-        function checkAndMergeByPosition(pieceObj) { /* 保持不变 */ }
-        function checkExternalMerges(groupAnchorPiece) { /* 保持不变 */ }
-        function placePiece(pieceObj, gridX, gridY) { /* 保持不变 */ }
-        function placeGroup(groupEl, gridX, gridY) { /* 保持不变 */ }
-        function returnToDock(el) { /* 保持不变 */ }
-        function returnGroupToPrevious(groupEl) { /* 保持不变 */ }
-        function generatePuzzleShapes() { /* 保持不变 */ }
-        
-        // --- 胜利/模态框/辅助函数 (保持不变) ---
-        function checkWin() {
-            if (pieces.length !== TOTAL_PIECES) return; 
-            // ... (rest of logic)
+        function placePiece(pieceObj, gridX, gridY) {
+            updatePieceMap(pieceObj, 'remove');
+
+            pieceObj.isPlaced = true;
+            pieceObj.currentX = gridX;
+            pieceObj.currentY = gridY;
+
+            updatePieceMap(pieceObj, 'add');
+
+            createGroup(pieceObj);
+
+            checkAndMergeByPosition(pieceObj);
         }
-        function gameOver(success) { /* 保持不变 */ }
-        function closeModal() { modalEl.style.display = 'none'; }
-        function updateTimer() { /* 保持不变 */ }
-        function updateTimerView() { /* 保持不变 */ }
-        function showOriginal() { overlayEl.classList.add('show'); }
-        function hideOriginal() { overlayEl.classList.remove('show'); }
-        function shuffleArray(array) { /* 保持不变 */ }
+
+        function placeGroup(groupEl, gridX, gridY) {
+            const anchorPiece = pieces.find(p => p.data.groupEl === groupEl).data;
+
+            const piecesInGroup = pieces.filter(p => p.data.groupEl === groupEl);
+            piecesInGroup.forEach(p => updatePieceMap(p.data, 'remove'));
+
+            const offsetX = gridX - anchorPiece.groupAnchorX;
+            const offsetY = gridY - anchorPiece.groupAnchorY;
+
+            piecesInGroup.forEach(p => {
+                p.data.currentX = p.data.currentX + offsetX;
+                p.data.currentY = p.data.currentY + offsetY;
+                p.data.isPlaced = true;
+
+                if (p.data === anchorPiece) {
+                    p.data.groupAnchorX = gridX;
+                    p.data.groupAnchorY = gridY;
+                }
+                updatePieceMap(p.data, 'add');
+            });
+
+            boardEl.appendChild(groupEl);
+
+            groupEl.style.left = (anchorPiece.groupAnchorX * TILE_SIZE + GROUP_OFFSET) + 'px';
+            groupEl.style.top = (anchorPiece.groupAnchorY * TILE_SIZE + GROUP_OFFSET) + 'px';
+
+            checkExternalMerges(anchorPiece);
+            checkWin();
+        }
+
+        function returnToDock(el) {
+            const id = parseInt(el.id.split('_')[1]);
+            const pieceObj = pieces.find(p => p.data.id === id).data;
+
+            updatePieceMap(pieceObj, 'remove');
+            pieceObj.isPlaced = false;
+
+            const currentRect = el.getBoundingClientRect();
+            const placeholder = document.createElement('div');
+            placeholder.style.width = el.offsetWidth + 'px';
+            placeholder.style.height = el.offsetHeight + 'px';
+            placeholder.style.visibility = 'hidden';
+            dockEl.appendChild(placeholder);
+            const targetRect = placeholder.getBoundingClientRect();
+
+            el.style.transition = 'none';
+            el.style.position = 'absolute';
+            el.style.left = currentRect.left + 'px';
+            el.style.top = currentRect.top + 'px';
+            dragLayer.appendChild(el);
+
+            setTimeout(() => {
+                el.style.transition = 'all 1s ease-in-out';
+                el.classList.add('flying-back');
+                el.style.left = targetRect.left + 'px';
+                el.style.top = targetRect.top + 'px';
+            }, 10);
+
+            setTimeout(() => {
+                el.classList.remove('flying-back');
+                el.style.transition = 'none';
+
+                dockEl.insertBefore(el, placeholder);
+                placeholder.remove();
+
+                el.style.position = 'relative';
+                el.style.left = '0';
+                el.style.top = '0';
+            }, 1000);
+        }
+
+        function returnGroupToPrevious(groupEl) {
+            const anchorPiece = pieces.find(p => p.data.groupEl === groupEl).data;
+            const prevX = anchorPiece.groupAnchorX;
+            const prevY = anchorPiece.groupAnchorY;
+
+            groupEl.classList.add('flying-back');
+
+            groupEl.style.left = (prevX * TILE_SIZE + GROUP_OFFSET) + 'px';
+            groupEl.style.top = (prevY * TILE_SIZE + GROUP_OFFSET) + 'px';
+
+            setTimeout(() => {
+                groupEl.classList.remove('flying-back');
+                groupEl.style.transition = 'none';
+            }, 1000);
+        }
+
+        function updateTimer() {
+            secondsElapsed++;
+            updateTimerView();
+            if (secondsElapsed > 180) {
+                gameOver(false);
+            }
+        }
+
+        function updateTimerView() {
+            const min = Math.floor(secondsElapsed / 60);
+            const sec = secondsElapsed % 60;
+            timerEl.innerText = `⏱ ${min}:${sec < 10 ? '0' + sec : sec}`;
+            if (secondsElapsed <= 120) starEl.innerText = "⭐⭐⭐";
+            else if (secondsElapsed <= 150) starEl.innerText = "⭐⭐";
+            else if (secondsElapsed <= 180) starEl.innerText = "⭐";
+            else starEl.innerText = "💔";
+        }
+
+        function showOriginal() {
+            overlayEl.classList.add('show');
+        }
+
+        function hideOriginal() {
+            overlayEl.classList.remove('show');
+        }
+
+        function checkWin() {
+            const allPlaced = pieces.every(p => p.data.isPlaced);
+            if (!allPlaced) return;
+            const allCorrect = pieces.every(p =>
+                p.data.isPlaced &&
+                p.data.currentX === p.data.targetX &&
+                p.data.currentY === p.data.targetY
+            );
+            if (allCorrect) {
+                gameOver(true);
+            }
+        }
+
+        function gameOver(success) {
+            isGaming = false;
+            clearInterval(timerInterval);
+            const title = document.getElementById('resultTitle');
+            const stars = document.getElementById('resultStars');
+            const time = document.getElementById('resultTime');
+            const desc = document.getElementById('resultDesc');
+
+            if (success) {
+                title.innerText = "恭喜！画卷修复完成";
+                title.style.color = "var(--gold)";
+                time.innerText = "最终用时: " + timerEl.innerText.replace('⏱ ', '');
+                if (secondsElapsed <= 120) stars.innerText = "⭐⭐⭐";
+                else if (secondsElapsed <= 150) stars.innerText = "⭐⭐";
+                else stars.innerText = "⭐";
+                desc.innerText = "已记录到个人最佳榜单！";
+            } else {
+                title.innerText = "挑战失败";
+                title.style.color = "gray";
+                stars.innerText = "";
+                time.innerText = "超时未完成";
+                desc.innerText = "请重新挑战";
+            }
+            modalEl.style.display = 'flex';
+        }
+
+        function closeModal() {
+            modalEl.style.display = 'none';
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
     </script>
 </body>
 </html>
